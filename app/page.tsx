@@ -1,32 +1,38 @@
 import { createClient } from '@supabase/supabase-js';
 import { Card, Title, Table, TableRow, TableCell, TableHead, TableHeaderCell, TableBody, Badge } from '@tremor/react';
 
-// Initialize Supabase
-// 1. Fetch the keys safely without the "!"
+// 1. Initialize Supabase safely for the build process
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// 2. Initialize only if keys exist. This prevents the "required" crash during build.
 const supabase = (supabaseUrl && supabaseAnonKey) 
   ? createClient(supabaseUrl, supabaseAnonKey) 
   : null;
 
-export default function Home() {
-  // 3. Add this check so the page doesn't try to run queries if supabase is null
+export default async function Dashboard() {
+  // 2. Safety check: If keys are missing during build, show a placeholder
   if (!supabase) {
-    return <div className="p-8">Connecting to database...</div>;
+    return (
+      <main className="p-8 bg-slate-50 min-h-screen flex items-center justify-center">
+        <Card className="max-w-md">
+          <Title>Database Connection Pending</Title>
+          <p className="text-slate-500 mt-2">Please ensure your Supabase Environment Variables are set in Vercel.</p>
+        </Card>
+      </main>
+    );
   }
 
-  // ... rest of your existing return () code ...
-}
-export default async function Dashboard() {
-  // Fetch transactions from your Supabase table
-  const { data: transactions } = await supabase
+  // 3. Fetch transactions from your Supabase table
+  const { data: transactions, error } = await supabase
     .from('transactions')
     .select('*')
     .order('date', { ascending: false });
 
-  // Calculation for total spent
+  if (error) {
+    console.error("Supabase Error:", error);
+  }
+
+  // 4. Calculation for total spent
   const totalSpent = transactions?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0;
 
   return (
@@ -40,8 +46,8 @@ export default async function Dashboard() {
             <p className="text-3xl font-bold text-slate-700">{transactions?.length || 0}</p>
           </Card>
           <Card decoration="top" decorationColor="red">
-            <p className="text-slate-500 text-sm font-medium">Total Spending (Mock)</p>
-            <p className="text-3xl font-bold text-slate-700">£{totalSpent.toLocaleString()}</p>
+            <p className="text-slate-500 text-sm font-medium">Total Spending</p>
+            <p className="text-3xl font-bold text-slate-700">£{totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
           </Card>
         </div>
 
@@ -58,16 +64,16 @@ export default async function Dashboard() {
             </TableHead>
             <TableBody>
               {transactions?.map((item) => (
-                <TableRow key={item.truelayer_id}>
-                  <TableCell>{item.date}</TableCell>
+                <TableRow key={item.truelayer_id || item.id}>
+                  <TableCell>{new Date(item.date).toLocaleDateString()}</TableCell>
                   <TableCell className="font-medium text-slate-700">{item.description}</TableCell>
                   <TableCell>
                     <Badge color={item.is_income ? "emerald" : "indigo"}>
-                      {item.category}
+                      {item.category || "Uncategorized"}
                     </Badge>
                   </TableCell>
                   <TableCell className={`font-bold ${item.is_income ? "text-emerald-600" : "text-slate-700"}`}>
-                    {item.is_income ? "+" : "-"}£{item.amount}
+                    {item.is_income ? "+" : "-"}£{Number(item.amount).toFixed(2)}
                   </TableCell>
                 </TableRow>
               ))}
