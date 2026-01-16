@@ -1,0 +1,25 @@
+name: Daily Bank Sync
+on:
+  schedule:
+    - cron: '0 6 * * *' # Runs every day at 6 AM
+  workflow_dispatch: # Allows you to run it manually from the GitHub website
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install requests supabase google-genai python-dotenv
+      - name: Run Python Sync
+        env:
+          TRUELAYER_REFRESH_TOKEN: ${{ secrets.TRUELAYER_REFRESH_TOKEN }}
+          TRUELAYER_CLIENT_ID: ${{ secrets.TRUELAYER_CLIENT_ID }}
+          TRUELAYER_CLIENT_SECRET: ${{ secrets.TRUELAYER_CLIENT_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python sync_to_supabase.py
