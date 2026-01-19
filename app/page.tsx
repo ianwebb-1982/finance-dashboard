@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Card, Title, Table, TableRow, TableCell, TableHead, TableHeaderCell, TableBody, Badge } from '@tremor/react';
 import CategoryChart from './components/CategoryChart';
+import { Suspense } from "react";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -22,7 +23,7 @@ export default async function Dashboard({
     );
   }
 
-  const selectedMonth = searchParams?.month || ''; // will default after we know months
+  const selectedMonth = searchParams?.month || '';
 
   const { data: transactions, error } = await supabase
     .from('transactions')
@@ -33,19 +34,16 @@ export default async function Dashboard({
 
   const allTx = transactions || [];
 
-  // Build months list from your data
   const months = Array.from(new Set(allTx.map(t => String(t.date).substring(0, 7))))
     .sort()
     .reverse();
 
   const activeMonth = selectedMonth || months[0] || '';
 
-  // Filter EVERYTHING by month
   const monthTx = activeMonth
     ? allTx.filter(t => String(t.date).startsWith(activeMonth))
     : allTx;
 
-  // Total spending should only count non-income (and use abs)
   const totalSpent = monthTx
     .filter(t => !t.is_income)
     .reduce((acc, curr) => acc + Math.abs(Number(curr.amount)), 0);
@@ -69,11 +67,20 @@ export default async function Dashboard({
         </div>
 
         {/* Pass months + activeMonth so chart can drive the URL */}
-        <CategoryChart
-          transactions={monthTx}
-          months={months}
-          selectedMonth={activeMonth}
-        />
+        <Suspense
+          fallback={
+            <Card className="mt-8">
+              <Title>Spending Breakdown</Title>
+              <p className="text-slate-500 mt-2">Loading…</p>
+            </Card>
+          }
+        >
+          <CategoryChart
+            transactions={monthTx}
+            months={months}
+            selectedMonth={activeMonth}
+          />
+        </Suspense>
 
         <Card className="mt-8">
           <Title>Recent Activity</Title>
