@@ -1,7 +1,8 @@
 'use client';
 
 import { Card, Title, Select, SelectItem } from '@tremor/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useTransition } from 'react';
 
 export default function CategoryChart({
   transactions,
@@ -13,7 +14,8 @@ export default function CategoryChart({
   selectedMonth: string;
 }) {
   const router = useRouter();
-  const params = useSearchParams();
+  const pathname = usePathname();
+  const [isPending, startTransition] = useTransition();
 
   // Filter out income and zero amounts
   const filteredData = transactions.filter(t =>
@@ -44,6 +46,12 @@ export default function CategoryChart({
     return minSize + (amount / maxAmount) * (maxSize - minSize);
   };
 
+  const handleMonthChange = (newMonth: string) => {
+    startTransition(() => {
+      router.push(`${pathname}?month=${newMonth}`);
+    });
+  };
+
   return (
     <Card className="mt-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -51,18 +59,22 @@ export default function CategoryChart({
 
         <Select
           value={selectedMonth}
-          onValueChange={(m) => {
-            const next = new URLSearchParams(params.toString());
-            next.set('month', m);
-            router.push(`/?${next.toString()}`);
-          }}
+          onValueChange={handleMonthChange}
           className="max-w-xs"
+          disabled={isPending}
         >
           {months.map(m => (
             <SelectItem key={m} value={m}>{m}</SelectItem>
           ))}
         </Select>
       </div>
+
+      {/* Loading indicator */}
+      {isPending && (
+        <div className="text-center text-slate-500 py-4">
+          Loading...
+        </div>
+      )}
 
       {/* Bubble Chart Visualization */}
       <div className="bg-slate-50 rounded-lg p-12 min-h-[300px] flex items-center justify-center">

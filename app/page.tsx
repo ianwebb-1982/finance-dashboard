@@ -10,7 +10,7 @@ const supabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, su
 export default async function Dashboard({
   searchParams,
 }: {
-  searchParams?: { month?: string };
+  searchParams: Promise<{ month?: string }>;
 }) {
   if (!supabase) {
     return (
@@ -23,7 +23,9 @@ export default async function Dashboard({
     );
   }
 
-  const selectedMonth = searchParams?.month || '';
+  // Await searchParams in Next.js 15
+  const params = await searchParams;
+  const selectedMonth = params?.month || '';
 
   // Fetch all transactions
   const { data: transactions, error } = await supabase
