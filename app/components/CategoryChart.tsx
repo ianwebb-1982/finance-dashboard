@@ -1,8 +1,7 @@
 'use client';
 
-import { Card, Title, Select, SelectItem } from '@tremor/react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useTransition } from 'react';
+import { Card, Title } from '@tremor/react';
+import { useRouter } from 'next/navigation';
 
 export default function CategoryChart({
   transactions,
@@ -14,8 +13,6 @@ export default function CategoryChart({
   selectedMonth: string;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const [isPending, startTransition] = useTransition();
 
   // Filter out income and zero amounts
   const filteredData = transactions.filter(t =>
@@ -46,10 +43,10 @@ export default function CategoryChart({
     return minSize + (amount / maxAmount) * (maxSize - minSize);
   };
 
-  const handleMonthChange = (newMonth: string) => {
-    startTransition(() => {
-      router.push(`${pathname}?month=${newMonth}`);
-    });
+  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newMonth = e.target.value;
+    console.log('Month changed to:', newMonth); // Debug log
+    router.push(`/?month=${newMonth}`);
   };
 
   return (
@@ -57,24 +54,17 @@ export default function CategoryChart({
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <Title>Spending Breakdown</Title>
 
-        <Select
+        {/* Native HTML select for better compatibility */}
+        <select
           value={selectedMonth}
-          onValueChange={handleMonthChange}
-          className="max-w-xs"
-          disabled={isPending}
+          onChange={handleMonthChange}
+          className="px-4 py-2 border-2 border-blue-500 rounded-lg bg-white text-slate-700 font-medium cursor-pointer hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           {months.map(m => (
-            <SelectItem key={m} value={m}>{m}</SelectItem>
+            <option key={m} value={m}>{m}</option>
           ))}
-        </Select>
+        </select>
       </div>
-
-      {/* Loading indicator */}
-      {isPending && (
-        <div className="text-center text-slate-500 py-4">
-          Loading...
-        </div>
-      )}
 
       {/* Bubble Chart Visualization */}
       <div className="bg-slate-50 rounded-lg p-12 min-h-[300px] flex items-center justify-center">
@@ -114,7 +104,7 @@ export default function CategoryChart({
         )}
       </div>
 
-      {/* Optional: Summary list below */}
+      {/* Summary list below */}
       <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {chartData.map((item) => (
           <div key={item.name} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
