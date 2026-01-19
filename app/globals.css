@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
-/* 1. Tell Tailwind specifically where your code is */
-@source ".";
+
 
 /* 2. Force Tailwind to generate the specific colors Tremor uses */
 @theme {
@@ -9,4 +8,3 @@
   --color-tremor-content: var(--color-slate-500);
 }
 
-/* 3. The "Unstoppable" Safelist: This forces the colors to load */
