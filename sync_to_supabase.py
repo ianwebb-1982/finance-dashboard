@@ -11,6 +11,18 @@ CLIENT_ID = os.getenv("TRUELAYER_CLIENT_ID")
 CLIENT_SECRET = os.getenv("TRUELAYER_CLIENT_SECRET")
 REDIRECT_URI = "https://console.truelayer.com/redirect-page"
 
+# Determine if using sandbox or live
+USE_SANDBOX = os.getenv("TRUELAYER_USE_SANDBOX", "false").lower() == "true"
+
+if USE_SANDBOX:
+    AUTH_URL = "https://auth.truelayer-sandbox.com/connect/token"
+    API_URL = "https://api.truelayer-sandbox.com/data/v1"
+    print("   Using SANDBOX environment")
+else:
+    AUTH_URL = "https://auth.truelayer.com/connect/token"
+    API_URL = "https://api.truelayer.com/data/v1"
+    print("   Using LIVE environment")
+
 # Get fresh auth code (you'll update this each time)
 AUTH_CODE = os.getenv("TRUELAYER_AUTH_CODE", "")
 
@@ -73,8 +85,8 @@ def start_sync():
     
     try:
         # Get Access Token
-        print("4. Requesting access token from TrueLayer...")
-        res = requests.post("https://auth.truelayer-sandbox.com/connect/token", data=token_payload, timeout=10)
+        print(f"4. Requesting access token from TrueLayer ({AUTH_URL})...")
+        res = requests.post(AUTH_URL, data=token_payload, timeout=10)
         
         if res.status_code != 200:
             print(f"❌ Token Error ({res.status_code}): {res.json()}")
@@ -85,40 +97,67 @@ def start_sync():
         
         token_data = res.json()
         access_token = token_data.get("access_token")
+        refresh_token = token_data.get("refresh_token")
+        
+        print(f"   ✅ Access token received")
+        print(f"   ✅ Refresh token: {'Yes' if refresh_token else 'No'}")
         
         if not access_token:
             print(f"❌ No access token in response: {token_data}")
             return
 
         # Get Bank Accounts
-        print("5. Access token obtained! Fetching bank accounts...")
-        headers = {"Authorization": f"Bearer {access_token}"}
-        acc_res = requests.get("https://api.truelayer-sandbox.com/data/v1/accounts", headers=headers, timeout=10)
+        print(f"5. Fetching bank accounts from {API_URL}/accounts...")
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        acc_res = requests.get(f"{API_URL}/accounts", headers=headers, timeout=10)
+        
+        print(f"   Response status: {acc_res.status_code}")
         
         if acc_res.status_code != 200:
             print(f"❌ Accounts Error ({acc_res.status_code}): {acc_res.json()}")
+            print("\n💡 DEBUGGING INFO:")
+            print(f"   - Client ID starts with: {CLIENT_ID[:20]}...")
+            print(f"   - Using environment: {'SANDBOX' if USE_SANDBOX else 'LIVE'}")
+            print(f"   - API URL: {API_URL}")
             return
         
         accounts = acc_res.json().get('results', [])
         
         if not accounts:
             print("❌ No accounts found!")
+            print("   This might mean:")
+            print("   - The bank connection wasn't successful")
+            print("   - Your consent has expired")
+            print("   - You need to re-authorize")
             return
         
         print(f"   Found {len(accounts)} account(s)")
+        for i, acc in enumerate(accounts, 1):
+            print(f"   [{i}] {acc.get('display_name', 'Unknown')} - {acc.get('account_type', 'Unknown')}")
         
         # Get Transactions from first account
         account_id = accounts[0]['account_id']
-        print(f"6. Fetching transactions for account: {account_id}...")
+        print(f"\n6. Fetching transactions for account: {account_id[:20]}...")
         
         trans_res = requests.get(
-            f"https://api.truelayer-sandbox.com/data/v1/accounts/{account_id}/transactions",
+            f"{API_URL}/accounts/{account_id}/transactions",
             headers=headers,
             timeout=10
         )
         
+        print(f"   Response status: {trans_res.status_code}")
+        
         if trans_res.status_code != 200:
             print(f"❌ Transactions Error ({trans_res.status_code}): {trans_res.json()}")
+            print("\n💡 This might mean:")
+            print("   - The access token doesn't have 'transactions' scope")
+            print("   - Your bank consent doesn't include transaction access")
+            print("   - The consent has expired (usually 90 days)")
+            print("\n   Try generating a NEW auth code with 'transactions' scope selected")
             return
         
         transactions = trans_res.json().get("results", [])
@@ -126,6 +165,10 @@ def start_sync():
 
         if not transactions:
             print("⚠️ No transactions found for this account.")
+            print("   This is normal if:")
+            print("   - The account is new")
+            print("   - There are no recent transactions")
+            print("   - The bank only shares recent data")
             return
 
         print(f"\n7. Syncing {len(transactions)} transactions to Supabase...")
@@ -160,6 +203,11 @@ def start_sync():
 
         print(f"\n🎉 SUCCESS! Synced {success_count}/{len(transactions)} transactions to Supabase.")
         print("   Refresh your dashboard to see the data!")
+        
+        if refresh_token:
+            print(f"\n💾 SAVE THIS REFRESH TOKEN for future use:")
+            print(f"   {refresh_token}")
+            print("   Add it to your .env as TRUELAYER_REFRESH_TOKEN")
 
     except requests.exceptions.Timeout:
         print("❌ Request timed out. Check your internet connection.")
