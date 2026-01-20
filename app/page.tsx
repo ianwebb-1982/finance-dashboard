@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import { Card, Title, Table, TableRow, TableCell, TableHead, TableHeaderCell, TableBody, Badge } from '@tremor/react';
+import { Card, Title } from '@tremor/react';
 import CategoryChart from './components/CategoryChart';
+import TransactionsTable from './components/TransactionsTable';
 import { Suspense } from "react";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -198,40 +199,8 @@ export default async function Dashboard({
           />
         </Suspense>
 
-        {/* Recent Activity Table */}
-        <Card className="mt-8">
-          <Title>Recent Activity</Title>
-          {monthTx.length > 0 ? (
-            <Table className="mt-5">
-              <TableHead>
-                <TableRow>
-                  <TableHeaderCell>Date</TableHeaderCell>
-                  <TableHeaderCell>Description</TableHeaderCell>
-                  <TableHeaderCell>Category</TableHeaderCell>
-                  <TableHeaderCell>Amount</TableHeaderCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {monthTx.slice(0, 20).map((item) => (
-                  <TableRow key={item.truelayer_id || item.id}>
-                    <TableCell>{new Date(item.date).toLocaleDateString('en-GB')}</TableCell>
-                    <TableCell className="font-medium text-slate-700">{item.description}</TableCell>
-                    <TableCell>
-                      <Badge color={item.is_income ? "emerald" : "indigo"}>
-                        {item.category || "Uncategorized"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className={`font-bold ${item.is_income ? "text-emerald-600" : "text-slate-700"}`}>
-                      {item.is_income ? "+" : "-"}£{Math.abs(Number(item.amount)).toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-slate-500 mt-4">No transactions for selected month</p>
-          )}
-        </Card>
+        {/* Recent Activity Table with Search & Edit */}
+        <TransactionsTable transactions={monthTx} />
       </div>
     </main>
   );
